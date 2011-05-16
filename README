@@ -1,0 +1,55 @@
+Value.js is a small JavaScript library to help maintain and format numeric values across different views. It was created as a by-product of bigger project. It puts emphasis on keeping the data correct at all times. Value.js will:
+
+help protect the value, keeping it only accessible through various getters and setters
+
+{{{
+var minutes = Value({value:1, min:1, max:60})
+minutes.set(20).value()
+>> 20
+}}}
+
+keep your value within bounds (min and max)
+
+{{{
+var comission = Value({value:10, min:1, max:25, format:{symbol:'%'}})
+comission.get()
+>> "10%"
+comission.set(25).get()
+>> "25%"
+comission.set(50).get()
+>> "25%"
+}}}
+
+allow your to nudge your value
+
+{{{
+var money = Value({value: 1500, min:0, max:10000, format:{symbol:'$', position:'before', format_thousands:true}})
+money.get()
+>> "$1,500"
+money.minus().get()
+>> "$1,499"
+money.setNudge(100).plus().plus().plus().get()
+>> "$1,799"
+}}}
+
+freeze and defrost your value
+{{{
+var deposit = Value({value: 10, frozen:true})
+deposit.value()
+>> 10
+deposit.set(1).value()
+>> 10
+deposit.minus().value()
+>> 10
+deposit.defrost().plus().value()
+>> 11
+}}}
+
+did you notice the chaining?
+
+Value.js is cross-browser compatible and library agnostic, which makes it a perfect companion for libraries like jQuery.
+
+To do:
+Provide examples of integration with jQuery
+Full API documentation
+
