@@ -33,26 +33,83 @@ function Value(conf) {
         subscribers = [],
         delta = 0,
         
-        //useful formatting defaults
-        formats = {
-            quantity: {symbol:'',format_thousands: true},
-            money: {symbol:'$', position: 'before', format_thousands: true},
-            percent: {symbol:'%'}
+        defaults = {
+            
+            format: function format(val) {
+                
+                var fmt_value = val || n_value;
+                var str_value;
+                //num to string
+                if (b_format_thousands) {
+                    str_value = format_thousands(fmt_value);
+                }
+                else {
+                    str_value = fmt_value+'';
+                }
+                var ret = s_prefix+str_value+s_suffix;
+                
+                if (fmt_value===0) {
+                    if (s_nill) {
+                        ret = s_nill;
+                    }
+                }
+                return ret;
+            },
+            
+            unformat: function(input) {
+                var input = input+'';
+                if (input===s_nill) {
+                    return 0;
+                }
+                else {
+                    return input.replace(/[^0-9\.]/gi,''); 
+                }
+            },
+
+            formatters: {
+                quantity: {symbol:'',format_thousands: true},
+                money: {symbol:'$', position: 'before', format_thousands: true},
+                percent: {symbol:'%'}
+            }
+            
         };
     
+    //prepares formatting
+    var format = defaults.format,
+        unformat = defaults.unformat;
+        
     handle_format_change(conf.format);
+    
+    //this is a one liner that does the same as handle_format_change for unformat
+    conf.unformat && (unformat = conf.unformat);
     
     function instance_of_Value(val) {
         return val instanceof Value
     }
     
-    function handle_format_change(new_o_format) {
-        if (new_o_format) {
-            typeof( new_o_format ) === 'object' && apply_format(new_o_format);
-            typeof( new_o_format ) === 'string' && new_o_format in formats && apply_format(formats[new_o_format]);
+    function handle_format_change(new_format) {
+    
+        if (new_format) {
+        
+            switch ( typeof(new_format) ) {
+                case 'object':
+                    apply_format(new_format);
+                    break;
+                
+                case 'string':
+                    new_format in defaults.formatters && apply_format(defaults.formatters[new_format]);
+                    break;
+                    
+                case 'function':
+                    format = new_format;
+                    break;
+            }
+        
         }
+    
     }
     
+    //sets up prefix and postfix as well as a separator
     function apply_format(new_o_format) {
         
         is_string(new_o_format.separator)   && (s_separator = new_o_format.separator);
@@ -73,6 +130,9 @@ function Value(conf) {
                 break;
 
         }
+        
+        //when using before, after & separator formatting function must be the built-in one
+        format = defaults.format;
    
     }
     
@@ -128,48 +188,6 @@ function Value(conf) {
         return start+end;
 
     };
-                
-    //prepares output string
-    function format_value(val) {
-        
-        var fmt_value = val || n_value;
-        
-        var str_value;
-        
-        //num to string
-        if (b_format_thousands) {
-            str_value = format_thousands(fmt_value);
-        }
-        else {
-            str_value = fmt_value+'';
-        }
-        
-        var ret = s_prefix+str_value+s_suffix;
-        
-        if (fmt_value===0) {
-            if (s_nill) {
-                ret = s_nill;
-            }
-        }
-        
-        return ret;
-
-    }
-        
-    //removes formatting and returns value
-    //useful for validating input
-    function unformat_value(input) {
-        
-        var input = input+'';
-        
-        if (input===s_nill) {
-            return 0;
-        }
-        else {
-            return input.replace(/\D/gi,''); 
-        }
-        
-    }
     
     function nudge(change, callback) {
         var new_value = n_value+change;
@@ -311,61 +329,52 @@ function Value(conf) {
     }
 
     me.get = function() {
-    
-        return format_value();
-    
+        return format( n_value );
     }
     
-    me.set = function(input_value, callback) {
+    me.set = function(test_value, callback) {
         
-        //if there is something
-        if (input_value !== '') {
-            
-            if (is_numeric(input_value)) {
-                 //if the value can be converted to numeric, convert it now
-                 var test_value = parseFloat(input_value);
+        //try unformatting first
+        //unformat value can return a string or a number
+        //sometimes a number is the only way, if input was '1 min'
+        //but Value stores time in milliseconds converting it to a number
+        //is the only option
+        //otherwise just replacing the string part is OK
+        
+        //default unformat function is always passed to unformat because it does
+        //useful basic stripping out numeric variable of chars other than digits        
+        is_string(test_value) && (test_value = unformat(test_value, defaults.unformat));
+        
+        is_numeric(test_value) && (test_value = parseFloat(test_value));
+        
+        //test value might be numeric - no problem, or NaN - then perhaps we need to convert it back
+        if (!isNaN(test_value)) {
+                          
+            //new value should stay within limit
+            if (is_within_limit(test_value)) {
+                
+                //if the value is the same don't change it
+                if (test_value!==n_value) {
+                    
+                    save_delta(test_value);
+                    CHANGE(test_value);
+                    handle_callback(callback);
+                
+                }
+                
             }
             
             else {
-            
-                //might be something like '$1000 stolen money'
-                //need to unformat first
-                var test_value = unformat_value(input_value);
-                //console.log('after unformat', test_value);
-                //might be an empty string at this moment
-                //but this will be NaN, so will fail on next check
-                test_value = parseFloat(test_value);
-            
-            }
-            
-            //test value might be numeric - no problem, or NaN - then perhaps we need to convert it back
-            if (!isNaN(test_value)) {
-                              
-                //new value should stay within limit
-                if (is_within_limit(test_value)) {
-                    
-                    //if the value is the same don't change it
-                    if (test_value!==n_value) {
-                        
-                        save_delta(test_value);
-                        CHANGE(test_value);
-                        handle_callback(callback);
-                    
-                    }
-                    
+                //set new value as the upper limit if the value was too high
+                //and low limit if too low
+                if (test_value<n_min) {
+                    me.set(n_min);
                 }
-                
-                else {
-                    //this should be intelligent enough to set new value as
-                    //the upper limit if the value was too high
-                    //and low limit if too low
-                    
+                if (test_value>n_max) {
+                    me.set(n_max);
                 }
-            
             }
-            
-            
-       
+        
         }
         
         //lack of anything might mean nill, if it's allowed
