@@ -1,4 +1,4 @@
-//ver 0.2
+//ver 0.3
 //copyright Karol Kowalski <kowcik@gmail.com>
 
 function Value(conf) {
