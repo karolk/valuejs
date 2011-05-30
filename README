@@ -1,16 +1,15 @@
-Value.js is a small JavaScript library to help maintain and format numeric values across different views. It was created as a by-product of bigger project. It puts emphasis on keeping the data correct at all times. Value.js will:
+value.js is a small JavaScript library to help maintain and format numeric values/ranges and format them automatically. It is very useful for financial/statistical projects as well as games, timers and anything that deals with numbers changing within boundries and number formatting.
+
+value.js will:
 
 help protect the value, keeping it only accessible through various getters and setters
 
-{{{
 var minutes = Value({value:1, min:1, max:60})
 minutes.set(20).value()
 >> 20
-}}}
 
-keep your value within bounds (min and max)
+keep your value within boundries (min and max)
 
-{{{
 var comission = Value({value:10, min:1, max:25, format:{symbol:'%'}})
 comission.get()
 >> "10%"
@@ -18,22 +17,19 @@ comission.set(25).get()
 >> "25%"
 comission.set(50).get()
 >> "25%"
-}}}
 
 allow your to nudge your value
 
-{{{
-var money = Value({value: 1500, min:0, max:10000, format:{symbol:'$', position:'before', format_thousands:true}})
+var money = Value({value: 1500, min: 0, max: 10000, format: 'money'})
 money.get()
 >> "$1,500"
 money.minus().get()
 >> "$1,499"
 money.setNudge(100).plus().plus().plus().get()
 >> "$1,799"
-}}}
 
 freeze and defrost your value
-{{{
+
 var deposit = Value({value: 10, frozen:true})
 deposit.value()
 >> 10
@@ -43,13 +39,20 @@ deposit.minus().value()
 >> 10
 deposit.defrost().plus().value()
 >> 11
-}}}
 
-did you notice the chaining?
+Did you notice the chaining?
 
-Value.js is cross-browser compatible and library agnostic, which makes it a perfect companion for libraries like jQuery.
+value.js is perfect for GUI development, because it allows you to set callbacks (either permanent or ad-hoc) on any value change, for instance:
 
-To do:
-Provide examples of integration with jQuery
-Full API documentation
+var points = new Value();
+points.subscribe(function(value) {
+	//update GUI with new value
+	$('input#points').val(value) //no need to use .get, in string context value.js will automatically return a string
+})
+>> "0"
+
+
+
+
+value.js is cross-browser compatible and library agnostic, which makes it a perfect companion for libraries like jQuery.
 
